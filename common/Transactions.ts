@@ -1,17 +1,44 @@
 import type { Wallet } from '@saberhq/solana-contrib'
-import type {
+import {
+  ComputeBudgetProgram,
   ConfirmOptions,
   Connection,
+  PublicKey,
   Signer,
   Transaction,
+  TransactionInstruction,
+  sendAndConfirmRawTransaction,
 } from '@solana/web3.js'
-import { sendAndConfirmRawTransaction } from '@solana/web3.js'
 import { notify } from 'common/Notification'
+
+function getTransaction({
+  instructions,
+  payer,
+  blockhash,
+  units,
+}: {
+  instructions: TransactionInstruction[]
+  payer: PublicKey
+  blockhash: string
+  units?: number
+}) {
+  units = units || 400_000 + 25_000
+  const microLamports = Math.ceil((10_000 * 10 ** 6) / units)
+  const tx = new Transaction()
+  tx.feePayer = payer
+  tx.recentBlockhash = blockhash
+  tx.instructions = [
+    ComputeBudgetProgram.setComputeUnitLimit({ units }),
+    ComputeBudgetProgram.setComputeUnitPrice({ microLamports }),
+    ...instructions,
+  ]
+  return tx
+}
 
 export const executeTransaction = async (
   connection: Connection,
   wallet: Wallet,
-  transaction: Transaction,
+  instructions: TransactionInstruction[],
   config: {
     silent?: boolean
     signers?: Signer[]
@@ -26,10 +53,19 @@ export const executeTransaction = async (
 ): Promise<string> => {
   let txid = ''
   try {
-    transaction.feePayer = wallet.publicKey
-    transaction.recentBlockhash = (
-      await connection.getRecentBlockhash('max')
-    ).blockhash
+    const { blockhash } = await connection.getLatestBlockhash('finalized')
+    let transaction = getTransaction({
+      instructions,
+      payer: wallet.publicKey,
+      blockhash,
+    })
+    const result = await connection.simulateTransaction(transaction)
+    transaction = getTransaction({
+      instructions,
+      payer: wallet.publicKey,
+      blockhash,
+      units: result.value.unitsConsumed,
+    })
     transaction = await wallet.signTransaction(transaction)
     if (config.signers && config.signers.length > 0) {
       await transaction.partialSign(...config.signers)
@@ -37,7 +73,7 @@ export const executeTransaction = async (
     txid = await sendAndConfirmRawTransaction(
       connection,
       transaction.serialize(),
-      config.confirmOptions
+      { ...config.confirmOptions, skipPreflight: true }
     )
     console.log('Successful tx', txid)
     config.notificationConfig &&

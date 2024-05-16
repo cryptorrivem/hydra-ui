@@ -1,9 +1,9 @@
 import { DisplayAddress } from '@cardinal/namespaces-components'
-import { executeTransaction } from '@cardinal/staking'
+import { executeTransaction } from 'common/Transactions'
 import { FanoutClient } from '@glasseaters/hydra-sdk'
 import { Wallet } from '@coral-xyz/anchor/dist/cjs/provider'
 import { useWallet } from '@solana/wallet-adapter-react'
-import { PublicKey, Transaction } from '@solana/web3.js'
+import { ComputeBudgetProgram, PublicKey, Transaction } from '@solana/web3.js'
 import { AsyncButton } from 'common/Button'
 import { Header } from 'common/Header'
 import { notify } from 'common/Notification'
@@ -86,16 +86,12 @@ const Home: NextPage = () => {
           throw 'Invalid SPL token address, please enter a valid address based on your network'
         }
         const fanoutSdk = new FanoutClient(connection, asWallet(wallet!))
-        const transaction = new Transaction()
-        transaction.add(
-          ...(
-            await fanoutSdk.initializeFanoutForMintInstructions({
-              fanout: fanoutData.data?.fanoutId,
-              mint: tokenPK,
-            })
-          ).instructions
-        )
-        await executeTransaction(connection, wallet as Wallet, transaction, {})
+        const { instructions } =
+          await fanoutSdk.initializeFanoutForMintInstructions({
+            fanout: fanoutData.data?.fanoutId,
+            mint: tokenPK,
+          })
+        await executeTransaction(connection, wallet as Wallet, instructions, {})
         notify({
           message: 'SPL Token added!',
           description: `Select the new token in the dropdown menu.`,
@@ -133,8 +129,14 @@ const Home: NextPage = () => {
             const distributionMemberSize = 5
             const vouchers = fanoutMembershipVouchers.data
             for (let i = 0; i < vouchers.length; i += distributionMemberSize) {
-              let transaction = new Transaction()
               const chunk = vouchers.slice(i, i + distributionMemberSize)
+              const units = 25_000 * chunk.length
+              let transaction = new Transaction().add(
+                ComputeBudgetProgram.setComputeUnitLimit({ units }),
+                ComputeBudgetProgram.setComputeUnitPrice({
+                  microLamports: Math.ceil((10_000 * 10 ** 6) / units),
+                })
+              )
               for (const voucher of chunk) {
                 let distMember =
                   await fanoutSdk.distributeWalletMemberInstructions({
@@ -159,7 +161,7 @@ const Home: NextPage = () => {
 
               const signature = await connection.sendRawTransaction(
                 transaction.serialize(),
-                { maxRetries: 3 }
+                { skipPreflight: true }
               )
 
               console.info('Tx sig:', signature)
@@ -183,16 +185,15 @@ const Home: NextPage = () => {
             throw 'No membership data found'
           }
         } else {
-          let transaction = new Transaction()
-          let distMember = await fanoutSdk.distributeWalletMemberInstructions({
-            distributeForMint: false,
-            member: wallet.publicKey,
-            fanout: fanoutData.fanoutId,
-            payer: wallet.publicKey,
-          })
-          transaction.instructions = [...distMember.instructions]
-          await executeTransaction(connection, asWallet(wallet), transaction, {
-            confirmOptions: { commitment: 'confirmed', maxRetries: 3 },
+          let { instructions } =
+            await fanoutSdk.distributeWalletMemberInstructions({
+              distributeForMint: false,
+              member: wallet.publicKey,
+              fanout: fanoutData.fanoutId,
+              payer: wallet.publicKey,
+            })
+          await executeTransaction(connection, asWallet(wallet), instructions, {
+            confirmOptions: { commitment: 'confirmed' },
             signers: [],
           })
           notify({

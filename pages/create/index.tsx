@@ -1,7 +1,7 @@
 import { Fanout, FanoutClient, MembershipModel } from '@glasseaters/hydra-sdk'
 import { Wallet } from '@saberhq/solana-contrib'
 import { useWallet } from '@solana/wallet-adapter-react'
-import { Transaction } from '@solana/web3.js'
+import { Transaction, TransactionInstruction } from '@solana/web3.js'
 import { AsyncButton } from 'common/Button'
 import { Header } from 'common/Header'
 import { notify } from 'common/Notification'
@@ -72,18 +72,17 @@ const Home: NextPage = () => {
           throw `Wallet '${walletName}' already exists`
         }
       } catch (e) {}
-      const transaction = new Transaction()
-      transaction.add(
+      const instructions: TransactionInstruction[] = [
         ...(
           await fanoutSdk.initializeFanoutInstructions({
             totalShares,
             name: walletName,
             membershipModel: MembershipModel.Wallet,
           })
-        ).instructions
-      )
+        ).instructions,
+      ]
       for (const member of hydraWalletMembers) {
-        transaction.add(
+        instructions.push(
           ...(
             await fanoutSdk.addMemberWalletInstructions({
               fanout: fanoutId,
@@ -94,7 +93,7 @@ const Home: NextPage = () => {
           ).instructions
         )
       }
-      await executeTransaction(connection, wallet as Wallet, transaction, {})
+      await executeTransaction(connection, wallet as Wallet, instructions, {})
       setSuccess(true)
     } catch (e) {
       notify({

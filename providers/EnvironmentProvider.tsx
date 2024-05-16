@@ -19,7 +19,8 @@ export interface EnvironmentContextValues {
 export const ENVIRONMENTS: Environment[] = [
   {
     label: 'mainnet-beta',
-    primary: process.env.MAINNET_PRIMARY || 'https://api.mainnet-beta.solana.com',
+    primary:
+      process.env.MAINNET_PRIMARY || 'https://api.mainnet-beta.solana.com',
     secondary: 'https://api.mainnet-beta.solana.com',
   },
   {
@@ -58,7 +59,7 @@ export function EnvironmentProvider({
   defaultCluster: string
 }) {
   const { query } = useRouter()
-  const cluster = (query.project || query.host)?.includes('dev')
+  let cluster = (query.project || query.host)?.includes('dev')
     ? 'devnet'
     : query.host?.includes('test')
     ? 'testnet'
