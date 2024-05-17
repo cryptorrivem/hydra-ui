@@ -1,19 +1,18 @@
 import { DisplayAddress } from '@cardinal/namespaces-components'
-import { executeTransaction } from 'common/Transactions'
 import { FanoutClient } from '@glasseaters/hydra-sdk'
-import { Wallet } from '@coral-xyz/anchor/dist/cjs/provider'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { ComputeBudgetProgram, PublicKey, Transaction } from '@solana/web3.js'
 import { AsyncButton } from 'common/Button'
 import { Header } from 'common/Header'
 import { notify } from 'common/Notification'
+import { executeTransaction } from 'common/Transactions'
+import { asWallet } from 'common/Wallets'
 import {
   getMintNaturalAmountFromDecimal,
   pubKeyUrl,
   shortPubKey,
   tryPublicKey,
 } from 'common/utils'
-import { asWallet } from 'common/Wallets'
 import { paymentMintConfig } from 'config/paymentMintConfig'
 import { FanoutData, useFanoutData } from 'hooks/useFanoutData'
 import { useFanoutMembershipMintVouchers } from 'hooks/useFanoutMembershipMintVouchers'
@@ -91,7 +90,7 @@ const Home: NextPage = () => {
             fanout: fanoutData.data?.fanoutId,
             mint: tokenPK,
           })
-        await executeTransaction(connection, wallet as Wallet, instructions, {})
+        await executeTransaction(connection, wallet, instructions, {})
         notify({
           message: 'SPL Token added!',
           description: `Select the new token in the dropdown menu.`,
@@ -192,7 +191,7 @@ const Home: NextPage = () => {
               fanout: fanoutData.fanoutId,
               payer: wallet.publicKey,
             })
-          await executeTransaction(connection, asWallet(wallet), instructions, {
+          await executeTransaction(connection, wallet, instructions, {
             confirmOptions: { commitment: 'confirmed' },
             signers: [],
           })

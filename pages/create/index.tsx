@@ -1,7 +1,6 @@
 import { Fanout, FanoutClient, MembershipModel } from '@glasseaters/hydra-sdk'
-import { Wallet } from '@saberhq/solana-contrib'
 import { useWallet } from '@solana/wallet-adapter-react'
-import { Transaction, TransactionInstruction } from '@solana/web3.js'
+import { TransactionInstruction } from '@solana/web3.js'
 import { AsyncButton } from 'common/Button'
 import { Header } from 'common/Header'
 import { notify } from 'common/Notification'
@@ -93,7 +92,7 @@ const Home: NextPage = () => {
           ).instructions
         )
       }
-      await executeTransaction(connection, wallet as Wallet, instructions, {})
+      await executeTransaction(connection, wallet, instructions, {})
       setSuccess(true)
     } catch (e) {
       notify({

@@ -1,4 +1,4 @@
-import type { Wallet } from '@saberhq/solana-contrib'
+import { WalletContextState } from '@solana/wallet-adapter-react'
 import {
   ComputeBudgetProgram,
   ConfirmOptions,
@@ -37,7 +37,7 @@ function getTransaction({
 
 export const executeTransaction = async (
   connection: Connection,
-  wallet: Wallet,
+  wallet: WalletContextState,
   instructions: TransactionInstruction[],
   config: {
     silent?: boolean
@@ -56,17 +56,17 @@ export const executeTransaction = async (
     const { blockhash } = await connection.getLatestBlockhash('finalized')
     let transaction = getTransaction({
       instructions,
-      payer: wallet.publicKey,
+      payer: wallet.publicKey!,
       blockhash,
     })
     const result = await connection.simulateTransaction(transaction)
     transaction = getTransaction({
       instructions,
-      payer: wallet.publicKey,
+      payer: wallet.publicKey!,
       blockhash,
       units: result.value.unitsConsumed,
     })
-    transaction = await wallet.signTransaction(transaction)
+    transaction = await wallet.signTransaction!(transaction)
     if (config.signers && config.signers.length > 0) {
       await transaction.partialSign(...config.signers)
     }
